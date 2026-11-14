@@ -35,3 +35,10 @@ huggingface_cache/
 # Final test results are regenerated once in a fresh checkout
 /ml-service/reports/test_scores.csv
 /ml-service/reports/distilbert_test_confusion_matrix.csv
+
+# Node / NestJS
+/backend/node_modules/
+/backend/dist/
+/backend/coverage/
+/backend/.nestjs/
+/backend/*.tsbuildinfo
