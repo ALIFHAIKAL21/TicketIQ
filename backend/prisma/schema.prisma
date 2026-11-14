@@ -1,0 +1,19 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Ticket {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  category    String   @default("UNCLASSIFIED")
+  urgency     String   @default("Medium")
+  isFallback  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
