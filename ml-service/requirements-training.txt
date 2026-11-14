@@ -1,0 +1,8 @@
+--extra-index-url https://download.pytorch.org/whl/cu128
+
+torch==2.11.0+cu128
+transformers>=4.40,<6
+datasets>=3,<6
+pandas>=2.2,<4
+scikit-learn>=1.5,<2
+joblib>=1.4

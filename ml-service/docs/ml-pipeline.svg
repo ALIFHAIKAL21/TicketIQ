@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1860" viewBox="0 0 1280 1860" role="img" aria-labelledby="title description">
+  <title id="title">TicketIQ dataset, training, evaluation, and inference flow</title>
+  <desc id="description">Diagram showing source cleanup and stratified sampling, urgency rule labeling, train and test splits, validation comparison of TF-IDF and DistilBERT, one-time final test evaluation, and API inference.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+    <style>
+      text { font-family: "Segoe UI", Arial, sans-serif; fill: #172033; }
+      .title { font-size: 30px; font-weight: 700; }
+      .section { font-size: 19px; font-weight: 700; fill: #075985; }
+      .box-title { font-size: 17px; font-weight: 700; }
+      .body { font-size: 14px; }
+      .small { font-size: 12px; fill: #475569; }
+      .box { stroke-width: 1.6; rx: 12; }
+      .data { fill: #eff6ff; stroke: #60a5fa; }
+      .rule { fill: #fff7ed; stroke: #fb923c; }
+      .train { fill: #f0fdf4; stroke: #4ade80; }
+      .model { fill: #f5f3ff; stroke: #a78bfa; }
+      .test { fill: #fff1f2; stroke: #fb7185; }
+      .api { fill: #ecfeff; stroke: #22d3ee; }
+      .arrow { fill: none; stroke: #64748b; stroke-width: 2; marker-end: url(#arrow); }
+      .dashed { stroke-dasharray: 6 5; }
+    </style>
+  </defs>
+
+  <rect width="1280" height="1860" fill="#ffffff"/>
+  <text x="640" y="46" text-anchor="middle" class="title">TicketIQ — Dataset, Training &amp; Inference</text>
+
+  <text x="52" y="92" class="section">1. Persiapan dataset</text>
+  <rect x="60" y="112" width="260" height="100" class="box data"/>
+  <text x="190" y="148" text-anchor="middle" class="box-title">Bitext dari Hugging Face</text>
+  <text x="190" y="176" text-anchor="middle" class="body">26.872 baris sumber</text>
+
+  <rect x="400" y="112" width="300" height="100" class="box data"/>
+  <text x="550" y="148" text-anchor="middle" class="box-title">Bersihkan data</text>
+  <text x="550" y="176" text-anchor="middle" class="body">Hapus kosong + duplikat pasangan</text>
+
+  <rect x="780" y="112" width="420" height="100" class="box data"/>
+  <text x="990" y="148" text-anchor="middle" class="box-title">24.635 baris valid</text>
+  <text x="990" y="176" text-anchor="middle" class="body">Tanpa synthetic text augmentation</text>
+
+  <path d="M320 162 H392" class="arrow"/>
+  <path d="M700 162 H772" class="arrow"/>
+
+  <rect x="400" y="250" width="300" height="104" class="box data"/>
+  <text x="550" y="285" text-anchor="middle" class="box-title">Stratified sampling</text>
+  <text x="550" y="312" text-anchor="middle" class="body">Proporsional per category</text>
+  <text x="550" y="334" text-anchor="middle" class="small">Target tepat 8.000 tiket</text>
+
+  <rect x="780" y="250" width="420" height="104" class="box rule"/>
+  <text x="990" y="285" text-anchor="middle" class="box-title">Label urgency dengan aturan</text>
+  <text x="990" y="312" text-anchor="middle" class="body">Keyword High → fallback kategori</text>
+  <text x="990" y="334" text-anchor="middle" class="small">Bukan target yang dipelajari ML</text>
+
+  <path d="M990 212 V232 H550 V242" class="arrow"/>
+  <path d="M700 302 H772" class="arrow"/>
+
+  <rect x="400" y="392" width="800" height="88" class="box data"/>
+  <text x="800" y="427" text-anchor="middle" class="box-title">ticketiq_full.csv — 8.000 baris</text>
+  <text x="800" y="455" text-anchor="middle" class="body">ticket_text · category (11 kelas) · urgency (Low / Medium / High)</text>
+  <path d="M550 354 V370 H760 V384" class="arrow"/>
+  <path d="M990 354 V370 H840 V384" class="arrow"/>
+
+  <text x="52" y="526" class="section">2. Split dataset dan validation</text>
+  <rect x="400" y="548" width="800" height="86" class="box data"/>
+  <text x="800" y="583" text-anchor="middle" class="box-title">Split awal 80 / 20</text>
+  <text x="800" y="610" text-anchor="middle" class="body">Stratified berdasarkan gabungan category + urgency</text>
+  <path d="M800 480 V540" class="arrow"/>
+
+  <rect x="120" y="686" width="440" height="92" class="box train"/>
+  <text x="340" y="722" text-anchor="middle" class="box-title">ticketiq_train.csv — 6.400</text>
+  <text x="340" y="750" text-anchor="middle" class="body">Sumber data untuk training + validation</text>
+
+  <rect x="720" y="686" width="440" height="92" class="box test"/>
+  <text x="940" y="722" text-anchor="middle" class="box-title">ticketiq_test.csv — 1.600</text>
+  <text x="940" y="750" text-anchor="middle" class="body">Disimpan terpisah; evaluasi final sekali</text>
+
+  <path d="M720 634 C650 655 480 655 380 678" class="arrow"/>
+  <path d="M880 634 C930 652 950 656 950 678" class="arrow"/>
+
+  <rect x="120" y="824" width="440" height="92" class="box train"/>
+  <text x="340" y="860" text-anchor="middle" class="box-title">Split internal 80 / 20 dari train</text>
+  <text x="340" y="888" text-anchor="middle" class="body">Stratified berdasarkan category</text>
+  <path d="M340 778 V816" class="arrow"/>
+
+  <rect x="80" y="960" width="280" height="88" class="box train"/>
+  <text x="220" y="995" text-anchor="middle" class="box-title">Model train — 5.120</text>
+  <text x="220" y="1023" text-anchor="middle" class="small">Digunakan memperbarui bobot</text>
+
+  <rect x="400" y="960" width="280" height="88" class="box data"/>
+  <text x="540" y="995" text-anchor="middle" class="box-title">Validation — 1.280</text>
+  <text x="540" y="1023" text-anchor="middle" class="small">Pilih / bandingkan model</text>
+  <path d="M280 916 C260 936 220 940 220 952" class="arrow"/>
+  <path d="M400 916 C430 936 520 940 540 952" class="arrow"/>
+
+  <text x="52" y="1100" class="section">3. Training klasifikasi category</text>
+  <rect x="70" y="1122" width="480" height="188" class="box model"/>
+  <text x="310" y="1158" text-anchor="middle" class="box-title">Baseline — TF-IDF + Logistic Regression</text>
+  <text x="310" y="1194" text-anchor="middle" class="body">Teks → fitur TF-IDF → classifier multi-class</text>
+  <text x="310" y="1222" text-anchor="middle" class="body">Fit hanya pada 5.120 model-train</text>
+  <text x="310" y="1270" text-anchor="middle" class="small">Pipeline disimpan sebagai joblib</text>
+
+  <rect x="700" y="1122" width="510" height="188" class="box model"/>
+  <text x="955" y="1158" text-anchor="middle" class="box-title">DistilBERT — fine-tuning di RTX 4050</text>
+  <text x="955" y="1190" text-anchor="middle" class="body">Tokenizer → input_ids + attention_mask</text>
+  <text x="955" y="1218" text-anchor="middle" class="body">Pretrained encoder → head 11 kategori → logits</text>
+  <text x="955" y="1246" text-anchor="middle" class="body">Cross-entropy + AdamW · 3 epoch · batch 8</text>
+  <text x="955" y="1278" text-anchor="middle" class="small">Fine-tuned model + tokenizer disimpan</text>
+
+  <path d="M220 1048 V1092 H310 V1114" class="arrow"/>
+  <path d="M220 1048 V1080 H955 V1114" class="arrow"/>
+  <path d="M540 1048 V1088 H550 V1318 H310 V1310" class="arrow dashed"/>
+  <path d="M540 1048 V1318 H955 V1310" class="arrow dashed"/>
+  <text x="562" y="1340" class="small">Validation digunakan untuk prediksi dan metrik; tidak untuk gradient update</text>
+
+  <rect x="250" y="1370" width="780" height="100" class="box train"/>
+  <text x="640" y="1407" text-anchor="middle" class="box-title">Bandingkan validation: accuracy + macro-F1 + confusion matrix</text>
+  <text x="640" y="1438" text-anchor="middle" class="body">Pilih DistilBERT untuk demo fine-tuning; baseline tetap jadi pembanding</text>
+  <path d="M310 1310 V1358 H450 V1362" class="arrow"/>
+  <path d="M955 1310 V1358 H830 V1362" class="arrow"/>
+
+  <rect x="720" y="1510" width="440" height="100" class="box test"/>
+  <text x="940" y="1547" text-anchor="middle" class="box-title">Evaluasi final DistilBERT sekali</text>
+  <text x="940" y="1578" text-anchor="middle" class="body">Test 1.600 → accuracy 0.9969 · macro-F1 0.9973</text>
+  <path d="M1160 732 H1240 V1560 H1168" class="arrow"/>
+  <path d="M830 1470 C860 1490 900 1495 925 1502" class="arrow"/>
+  <text x="965" y="838" class="small" fill="#be123c">Tidak untuk training / tuning</text>
+
+  <text x="52" y="1660" class="section">4. Inferensi API</text>
+  <rect x="70" y="1682" width="310" height="92" class="box api"/>
+  <text x="225" y="1718" text-anchor="middle" class="box-title">Teks tiket baru</text>
+  <text x="225" y="1746" text-anchor="middle" class="body">POST /classify</text>
+
+  <rect x="485" y="1682" width="310" height="92" class="box model"/>
+  <text x="640" y="1718" text-anchor="middle" class="box-title">DistilBERT</text>
+  <text x="640" y="1746" text-anchor="middle" class="body">Prediksi category</text>
+
+  <rect x="900" y="1682" width="310" height="92" class="box rule"/>
+  <text x="1055" y="1718" text-anchor="middle" class="box-title">Rule urgency yang sama</text>
+  <text x="1055" y="1746" text-anchor="middle" class="body">Response category + urgency</text>
+
+  <path d="M380 1728 H477" class="arrow"/>
+  <path d="M795 1728 H892" class="arrow"/>
+</svg>

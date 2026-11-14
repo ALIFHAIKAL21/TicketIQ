@@ -1,0 +1,3 @@
+model,accuracy,f1_macro
+tfidf_logistic_regression,0.9953125,0.9947676660206703
+distilbert,0.9984375,0.9986807137488153
