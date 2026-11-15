@@ -1,19 +1,41 @@
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 generator client {
   provider = "prisma-client-js"
 }
 
+enum TicketCategory {
+  ACCOUNT
+  ORDER
+  REFUND
+  CONTACT
+  PAYMENT
+  FEEDBACK
+  SHIPPING
+  INVOICE
+  DELIVERY
+  SUBSCRIPTION
+  CANCEL
+  UNCLASSIFIED
+}
+
+enum TicketUrgency {
+  Low
+  Medium
+  High
+}
+
 model Ticket {
-  id          String   @id @default(uuid())
+  id          String         @id @default(uuid())
   title       String
   description String
-  category    String   @default("UNCLASSIFIED")
-  urgency     String   @default("Medium")
-  isFallback  Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  category    TicketCategory @default(UNCLASSIFIED)
+  urgency     TicketUrgency  @default(Medium)
+  isFallback  Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 }
