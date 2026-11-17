@@ -4,19 +4,37 @@ import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
+import { MlClientService } from './../src/ml-client/ml.client.service';
 import { PrismaService } from './../src/prisma/prisma.service';
 
 describe('Ticket API (e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
   let createdTicketIds: string[];
+  const mlClientMock = {
+    classify: jest.fn().mockResolvedValue({
+      category: 'PAYMENT',
+      urgency: 'High',
+      isFallback: false,
+    }),
+  };
 
   beforeEach(async () => {
     createdTicketIds = [];
+    mlClientMock.classify
+      .mockReset()
+      .mockResolvedValue({
+        category: 'PAYMENT',
+        urgency: 'High',
+        isFallback: false,
+      });
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(MlClientService)
+      .useValue(mlClientMock)
+      .compile();
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(
@@ -52,10 +70,13 @@ describe('Ticket API (e2e)', () => {
     expect(createResponse.body).toEqual(
       expect.objectContaining({
         id: ticketId,
-        category: 'UNCLASSIFIED',
-        urgency: 'Medium',
+        category: 'PAYMENT',
+        urgency: 'High',
         isFallback: false,
       }),
+    );
+    expect(mlClientMock.classify).toHaveBeenCalledWith(
+      'Payment issue\nI need help with a payment that is still pending.',
     );
 
     const listResponse = await request(app.getHttpServer())
@@ -71,6 +92,72 @@ describe('Ticket API (e2e)', () => {
       .expect(({ body }) => {
         expect(body.id).toBe(ticketId);
       });
+  });
+
+  it('filters tickets and sorts by urgency priority, then newest first', async () => {
+    const classifications = [
+      { category: 'PAYMENT', urgency: 'High', isFallback: false },
+      { category: 'PAYMENT', urgency: 'High', isFallback: false },
+      { category: 'REFUND', urgency: 'Medium', isFallback: false },
+      { category: 'PAYMENT', urgency: 'Low', isFallback: false },
+    ];
+    mlClientMock.classify
+      .mockResolvedValueOnce(classifications[0])
+      .mockResolvedValueOnce(classifications[1])
+      .mockResolvedValueOnce(classifications[2])
+      .mockResolvedValueOnce(classifications[3]);
+
+    const fixtureIds: string[] = [];
+    for (const [index, title] of [
+      'Older high payment',
+      'Newer high payment',
+      'Medium refund',
+      'Low payment',
+    ].entries()) {
+      const response = await request(app.getHttpServer())
+        .post('/tickets')
+        .send({
+          title,
+          description: 'This is a test ticket description.',
+        })
+        .expect(201);
+      fixtureIds.push(response.body.id);
+      createdTicketIds.push(response.body.id);
+
+      await prisma.ticket.update({
+        where: { id: response.body.id },
+        data: { createdAt: new Date(Date.UTC(2025, 0, index + 1)) },
+      });
+    }
+
+    const listResponse = await request(app.getHttpServer())
+      .get('/tickets')
+      .expect(200);
+    const fixtureOrder = listResponse.body
+      .map((ticket: { id: string }) => ticket.id)
+      .filter((id: string) => fixtureIds.includes(id));
+
+    expect(fixtureOrder).toEqual([
+      fixtureIds[1],
+      fixtureIds[0],
+      fixtureIds[2],
+      fixtureIds[3],
+    ]);
+
+    const filteredResponse = await request(app.getHttpServer())
+      .get('/tickets?category=PAYMENT&urgency=High')
+      .expect(200);
+    const filteredFixtures = filteredResponse.body
+      .map((ticket: { id: string }) => ticket.id)
+      .filter((id: string) => fixtureIds.includes(id));
+
+    expect(filteredFixtures).toEqual([fixtureIds[1], fixtureIds[0]]);
+    expect(
+      filteredResponse.body.every(
+        (ticket: { category: string; urgency: string }) =>
+          ticket.category === 'PAYMENT' && ticket.urgency === 'High',
+      ),
+    ).toBe(true);
   });
 
   it('rejects invalid ticket input', async () => {
