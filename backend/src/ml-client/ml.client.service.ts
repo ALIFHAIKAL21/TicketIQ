@@ -15,11 +15,13 @@ export interface ClassificationResult extends MlClassificationResponse {
 
 @Injectable()
 export class MlClientService {
+  // depedency injection untuk HttpService and ConfigService
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {}
 
+  
   async classify(ticketText: string): Promise<ClassificationResult> {
     const baseUrl = this.configService.getOrThrow<string>('ML_SERVICE_URL');
     const endpoint = `${baseUrl.replace(/\/+$/, '')}/classify`;
