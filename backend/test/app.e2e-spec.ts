@@ -4,6 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
+import { FilterExceptionFilter } from './../src/common/filters/filter-exception.filter';
 import { MlClientService } from './../src/ml-client/ml.client.service';
 import { PrismaService } from './../src/prisma/prisma.service';
 
@@ -17,6 +18,7 @@ describe('Ticket API (e2e)', () => {
       urgency: 'High',
       isFallback: false,
     }),
+    isReachable: jest.fn().mockResolvedValue(true),
   };
 
   beforeEach(async () => {
@@ -28,6 +30,7 @@ describe('Ticket API (e2e)', () => {
         urgency: 'High',
         isFallback: false,
       });
+    mlClientMock.isReachable.mockReset().mockResolvedValue(true);
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -37,6 +40,7 @@ describe('Ticket API (e2e)', () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
+    app.useGlobalFilters(new FilterExceptionFilter());
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -53,6 +57,28 @@ describe('Ticket API (e2e)', () => {
       .get('/')
       .expect(200)
       .expect('Hello World!');
+  });
+
+  it('reports the ML service as reachable when the probe succeeds', () => {
+    return request(app.getHttpServer())
+      .get('/health')
+      .expect(200)
+      .expect({
+        status: 'ok',
+        mlService: 'reachable',
+      });
+  });
+
+  it('reports the ML service as unreachable while keeping health HTTP 200', async () => {
+    mlClientMock.isReachable.mockResolvedValueOnce(false);
+
+    await request(app.getHttpServer())
+      .get('/health')
+      .expect(200)
+      .expect({
+        status: 'ok',
+        mlService: 'unreachable',
+      });
   });
 
   it('creates a ticket and returns it in the list and detail endpoints', async () => {
@@ -164,18 +190,39 @@ describe('Ticket API (e2e)', () => {
     await request(app.getHttpServer())
       .post('/tickets')
       .send({ title: 'ab', description: 'short' })
-      .expect(400);
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body).toEqual({
+          statusCode: 400,
+          message: expect.any(String),
+          error: 'Bad Request',
+        });
+      });
 
     await request(app.getHttpServer())
       .post('/tickets')
       .send({ title: 'Valid title' })
-      .expect(400);
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body).toEqual({
+          statusCode: 400,
+          message: expect.any(String),
+          error: 'Bad Request',
+        });
+      });
   });
 
   it('returns 404 for a ticket that does not exist', () => {
     return request(app.getHttpServer())
       .get(`/tickets/${randomUUID()}`)
-      .expect(404);
+      .expect(404)
+      .expect(({ body }) => {
+        expect(body).toEqual({
+          statusCode: 404,
+          message: expect.any(String),
+          error: 'Not Found',
+        });
+      });
   });
 
   afterEach(async () => {

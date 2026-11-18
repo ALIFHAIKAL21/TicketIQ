@@ -52,4 +52,20 @@ const { data } = await firstValueFrom(
     }
 
   }
+
+  async isReachable(): Promise<boolean> {
+    const baseUrl = this.configService.getOrThrow<string>('ML_SERVICE_URL');
+    const endpoint = `${baseUrl.replace(/\/+$/, '')}/openapi.json`;
+
+    try {
+      await firstValueFrom(
+        this.httpService.get(endpoint, {
+          timeout: 2000,
+        }),
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }
