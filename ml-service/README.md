@@ -261,8 +261,8 @@ Response:
 
 Urutan inferensi adalah: teks tiket → DistilBERT memprediksi kategori →
 `assign_urgency()` menerapkan rule → API mengembalikan kategori dan urgency.
-Dokumen ini hanya mencakup service Python; integrasi NestJS akan
-didokumentasikan pada tahap backend.
+Panduan untuk menjalankan NestJS dan menghubungkannya ke service ini ada di
+[`backend/README.md`](../backend/README.md).
 
 ## Urutan menjalankan pipeline
 
