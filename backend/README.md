@@ -32,9 +32,11 @@ Buat secret access token acak minimal 32 byte; contoh menggunakan Node:
 node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 ```
 
-Masukkan hasilnya ke `JWT_SECRET` di `.env`, lalu tetapkan password admin
-bootstrap yang kuat (12–128 karakter). Jangan commit `.env` atau menempelkan
-secret ke dokumentasi.
+Masukkan hasilnya ke `JWT_SECRET` di `.env`, pastikan
+`BOOTSTRAP_ADMIN_EMAIL` terisi (contoh `admin@example.com`), lalu tetapkan
+password admin bootstrap yang kuat (12–128 karakter). Script seed membaca
+konfigurasi dari `.env`. Jangan commit `.env` atau menempelkan secret ke
+dokumentasi.
 
 | Variabel | Kegunaan |
 |---|---|
@@ -87,6 +89,11 @@ NestJS berjalan di `http://localhost:3000`. Swagger UI ada di
 Endpoint lain memerlukan access token bearer. Gunakan
 `BOOTSTRAP_ADMIN_EMAIL` dan `BOOTSTRAP_ADMIN_PASSWORD` untuk login, lalu klik
 **Authorize** di Swagger dan masukkan token.
+
+Dashboard visual minimal tersedia di [`http://localhost:3000`](http://localhost:3000).
+Dashboard ini disajikan langsung oleh NestJS dari `public/` dan memakai
+JavaScript browser biasa untuk memanggil API yang sama; tidak ada framework
+frontend atau proses build frontend tambahan.
 
 ### Login dan autentikasi API
 

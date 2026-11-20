@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="TicketIQ support workspace for triage and ticket operations."
+    />
+    <meta name="theme-color" content="#f4f6fb" />
+    <title>TicketIQ Support Workspace</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <main id="login-screen" class="login-screen">
+      <section class="login-card" aria-labelledby="login-title">
+        <a class="brand brand-login" href="/" aria-label="TicketIQ home">
+          <span class="brand-mark">T</span>
+          <span>Ticket<span class="brand-accent">IQ</span></span>
+        </a>
+        <p class="eyebrow">SUPPORT OPERATIONS</p>
+        <h1 id="login-title">Welcome back</h1>
+        <p class="muted">
+          Sign in to triage tickets and keep your workspace moving.
+        </p>
+        <form id="login-form" class="form-stack">
+          <label for="login-email">Work email</label>
+          <input
+            id="login-email"
+            name="email"
+            type="email"
+            autocomplete="username"
+            placeholder="you@company.com"
+            required
+          />
+          <label for="login-password">Password</label>
+          <input
+            id="login-password"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            minlength="12"
+            required
+          />
+          <p id="login-error" class="form-error" role="alert" hidden></p>
+          <button class="button button-primary button-wide" type="submit">
+            <span>Sign in</span>
+            <span aria-hidden="true">&rarr;</span>
+          </button>
+        </form>
+        <p class="login-footnote">
+          Access is limited to members of your TicketIQ workspace.
+        </p>
+      </section>
+      <aside class="login-aside" aria-label="TicketIQ overview">
+        <div class="aside-orb aside-orb-one"></div>
+        <div class="aside-orb aside-orb-two"></div>
+        <div class="aside-content">
+          <span class="aside-kicker">AI-ASSISTED SUPPORT</span>
+          <h2>Every ticket.<br />A clearer next step.</h2>
+          <p>
+            Keep urgency, ownership, and resolution history in one focused
+            workspace.
+          </p>
+          <div class="aside-stat">
+            <span class="aside-stat-icon" aria-hidden="true">&#10003;</span>
+            <span>One queue, from intake to resolution</span>
+          </div>
+        </div>
+        <span class="aside-caption">TICKETIQ WORKSPACE</span>
+      </aside>
+    </main>
+
+    <div id="workspace" class="workspace" hidden>
+      <aside class="sidebar">
+        <a class="brand sidebar-brand" href="/" aria-label="TicketIQ home">
+          <span class="brand-mark">T</span>
+          <span>Ticket<span class="brand-accent">IQ</span></span>
+        </a>
+
+        <div class="workspace-label">
+          <span class="workspace-dot"></span>
+          <span>SUPPORT WORKSPACE</span>
+        </div>
+
+        <nav class="side-nav" aria-label="Main navigation">
+          <a class="side-link is-active" href="#queue">
+            <span class="nav-icon" aria-hidden="true">&#9638;</span>
+            <span>Ticket queue</span>
+            <span id="nav-open-count" class="nav-count">0</span>
+          </a>
+          <a class="side-link" href="/api-docs" target="_blank" rel="noreferrer">
+            <span class="nav-icon" aria-hidden="true">&#8644;</span>
+            <span>API documentation</span>
+            <span class="external-mark" aria-hidden="true">&#8599;</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+          <div class="sidebar-note">
+            <span class="note-icon" aria-hidden="true">&#10022;</span>
+            <div>
+              <strong>Smart triage</strong>
+              <p>Category and urgency are assigned at intake.</p>
+            </div>
+          </div>
+          <div class="user-card">
+            <span id="user-avatar" class="avatar">T</span>
+            <span class="user-copy">
+              <strong id="user-name">Team member</strong>
+              <small id="user-role">AGENT</small>
+            </span>
+            <button
+              id="logout-button"
+              class="icon-button logout-button"
+              type="button"
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              &#8594;
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div class="breadcrumb">
+            <span>Workspace</span>
+            <span class="breadcrumb-separator">/</span>
+            <strong>Ticket queue</strong>
+          </div>
+          <div class="topbar-actions">
+            <span id="service-status" class="service-status">
+              <span class="status-pulse"></span>
+              Checking services
+            </span>
+            <a class="docs-link" href="/api-docs" target="_blank" rel="noreferrer">
+              API docs <span aria-hidden="true">&#8599;</span>
+            </a>
+          </div>
+        </header>
+
+        <div class="page-content">
+          <section class="page-heading">
+            <div>
+              <p class="eyebrow">YOUR TEAM INBOX</p>
+              <h1>Support overview</h1>
+              <p class="muted">
+                Triage customer requests and move each ticket forward.
+              </p>
+            </div>
+            <button id="new-ticket-button" class="button button-primary" type="button">
+              <span class="plus-icon" aria-hidden="true">+</span>
+              New ticket
+            </button>
+          </section>
+
+          <section id="summary-grid" class="summary-grid" aria-label="Queue summary">
+            <article class="summary-card">
+              <div class="summary-topline">
+                <span class="summary-label">Open tickets</span>
+                <span class="summary-icon icon-indigo" aria-hidden="true">&#9638;</span>
+              </div>
+              <strong id="summary-open" class="summary-value">--</strong>
+              <span class="summary-caption">Needs attention</span>
+            </article>
+            <article class="summary-card">
+              <div class="summary-topline">
+                <span class="summary-label">High urgency</span>
+                <span class="summary-icon icon-rose" aria-hidden="true">&#8593;</span>
+              </div>
+              <strong id="summary-high" class="summary-value">--</strong>
+              <span class="summary-caption">Open high-priority tickets</span>
+            </article>
+            <article class="summary-card">
+              <div class="summary-topline">
+                <span class="summary-label">Unassigned</span>
+                <span class="summary-icon icon-amber" aria-hidden="true">&#9679;</span>
+              </div>
+              <strong id="summary-unassigned" class="summary-value">--</strong>
+              <span class="summary-caption">Waiting for an owner</span>
+            </article>
+            <article class="summary-card">
+              <div class="summary-topline">
+                <span class="summary-label">Overdue SLA</span>
+                <span class="summary-icon icon-blue" aria-hidden="true">&#9201;</span>
+              </div>
+              <strong id="summary-overdue" class="summary-value">--</strong>
+              <span class="summary-caption">Past resolution deadline</span>
+            </article>
+          </section>
+
+          <section id="queue" class="queue-panel" aria-labelledby="queue-title">
+            <div class="queue-heading">
+              <div>
+                <div class="section-title-row">
+                  <h2 id="queue-title">Ticket queue</h2>
+                  <span id="queue-total" class="total-pill">0</span>
+                </div>
+                <p class="muted">High urgency first, then the newest tickets.</p>
+              </div>
+              <button
+                id="refresh-button"
+                class="button button-quiet"
+                type="button"
+                aria-label="Refresh queue"
+              >
+                <span class="refresh-icon" aria-hidden="true">&#8635;</span>
+                Refresh
+              </button>
+            </div>
+
+            <form id="filter-form" class="filter-bar">
+              <label class="search-field">
+                <span class="search-icon" aria-hidden="true">&#9906;</span>
+                <span class="visually-hidden">Search tickets</span>
+                <input
+                  id="filter-search"
+                  name="q"
+                  type="search"
+                  maxlength="200"
+                  placeholder="Search tickets..."
+                />
+                <kbd>/</kbd>
+              </label>
+              <label class="filter-select">
+                <span class="visually-hidden">Filter by status</span>
+                <select id="filter-status" name="status">
+                  <option value="">All statuses</option>
+                  <option value="NEW">New</option>
+                  <option value="IN_PROGRESS">In progress</option>
+                  <option value="RESOLVED">Resolved</option>
+                </select>
+              </label>
+              <label class="filter-select">
+                <span class="visually-hidden">Filter by urgency</span>
+                <select id="filter-urgency" name="urgency">
+                  <option value="">All urgency</option>
+                  <option value="High">High urgency</option>
+                  <option value="Medium">Medium urgency</option>
+                  <option value="Low">Low urgency</option>
+                </select>
+              </label>
+              <label class="filter-select">
+                <span class="visually-hidden">Filter by category</span>
+                <select id="filter-category" name="category">
+                  <option value="">All categories</option>
+                  <option>ACCOUNT</option>
+                  <option>ORDER</option>
+                  <option>REFUND</option>
+                  <option>CONTACT</option>
+                  <option>PAYMENT</option>
+                  <option>FEEDBACK</option>
+                  <option>SHIPPING</option>
+                  <option>INVOICE</option>
+                  <option>DELIVERY</option>
+                  <option>SUBSCRIPTION</option>
+                  <option>CANCEL</option>
+                  <option>UNCLASSIFIED</option>
+                </select>
+              </label>
+              <label class="filter-select filter-select-narrow">
+                <span class="visually-hidden">Filter by SLA</span>
+                <select id="filter-overdue" name="overdue">
+                  <option value="">All SLA</option>
+                  <option value="true">Overdue</option>
+                  <option value="false">On track</option>
+                </select>
+              </label>
+              <button id="clear-filters" class="clear-filters" type="reset">
+                Clear
+              </button>
+            </form>
+
+            <div class="queue-columns" aria-hidden="true">
+              <span>Ticket</span>
+              <span>Category</span>
+              <span>Urgency</span>
+              <span>Assignee</span>
+              <span>Status</span>
+              <span>SLA</span>
+            </div>
+            <div id="ticket-list" class="ticket-list" aria-live="polite">
+              <div class="queue-loading">
+                <span class="spinner"></span>
+                Loading your queue...
+              </div>
+            </div>
+            <footer class="queue-footer">
+              <span id="pagination-caption" class="muted">Page 1 of 1</span>
+              <div class="pagination-actions">
+                <button id="previous-page" class="button button-quiet" type="button">
+                  Previous
+                </button>
+                <button id="next-page" class="button button-quiet" type="button">
+                  Next
+                </button>
+              </div>
+            </footer>
+          </section>
+          <footer class="page-footer">
+            <span>TicketIQ Support Workspace</span>
+            <span>Urgency is calculated by the classification service.</span>
+          </footer>
+        </div>
+      </main>
+    </div>
+
+    <dialog id="create-dialog" class="modal" aria-labelledby="create-title">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">CUSTOMER INTAKE</p>
+          <h2 id="create-title">Create a ticket</h2>
+        </div>
+        <button
+          class="icon-button"
+          type="button"
+          data-close-dialog="create-dialog"
+          aria-label="Close dialog"
+        >
+          &times;
+        </button>
+      </div>
+      <p class="muted modal-intro">
+        The classification service will suggest a category and urgency.
+      </p>
+      <form id="create-form" class="form-stack">
+        <label for="ticket-title">Ticket title</label>
+        <input
+          id="ticket-title"
+          name="title"
+          type="text"
+          minlength="3"
+          placeholder="e.g. Payment still pending"
+          required
+        />
+        <label for="ticket-description">What does the customer need help with?</label>
+        <textarea
+          id="ticket-description"
+          name="description"
+          minlength="10"
+          rows="5"
+          placeholder="Add enough detail to understand the request..."
+          required
+        ></textarea>
+        <p id="create-error" class="form-error" role="alert" hidden></p>
+        <div class="modal-actions">
+          <button class="button button-quiet" type="button" data-close-dialog="create-dialog">
+            Cancel
+          </button>
+          <button class="button button-primary" type="submit">Create ticket</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog
+      id="ticket-dialog"
+      class="modal modal-wide"
+      aria-label="Ticket details"
+    >
+      <div id="ticket-detail" class="ticket-detail">
+        <div class="queue-loading">
+          <span class="spinner"></span>
+          Loading ticket...
+        </div>
+      </div>
+    </dialog>
+
+    <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+  </body>
+</html>

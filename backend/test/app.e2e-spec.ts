@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { join } from 'node:path';
+import { ValidationPipe } from '@nestjs/common';
 import { PasswordHasher, TokenService } from '@nestjs/authentication';
 import { UserRole } from '@prisma/client';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test, TestingModule } from '@nestjs/testing';
 import rawRequest from 'supertest';
 import { App } from 'supertest/types';
@@ -15,7 +17,7 @@ import { TicketService } from './../src/tickets/ticket.service';
 describe('Ticket API (e2e)', () => {
   process.env.JWT_SECRET ??= 'e2e-only-secret-key-not-for-production-123456';
   const TEST_PASSWORD = 'test-password-for-e2e-only';
-  let app: INestApplication<App>;
+  let app: NestExpressApplication;
   let prisma: PrismaService;
   let createdTicketIds: string[];
   let createdAgentIds: string[];
@@ -82,7 +84,8 @@ describe('Ticket API (e2e)', () => {
       .useValue(mlClientMock)
       .compile();
 
-    app = moduleFixture.createNestApplication();
+    app = moduleFixture.createNestApplication<NestExpressApplication>();
+    app.useStaticAssets(join(process.cwd(), 'public'));
     app.useGlobalFilters(new FilterExceptionFilter());
     app.useGlobalPipes(
       new ValidationPipe({
@@ -119,11 +122,20 @@ describe('Ticket API (e2e)', () => {
     bearerToken = token.accessToken;
   });
 
-  it('GET / returns the default response', () => {
-    return request(app.getHttpServer())
+  it('serves the dashboard and its static assets', async () => {
+    await rawRequest(app.getHttpServer())
       .get('/')
       .expect(200)
-      .expect('Hello World!');
+      .expect('Content-Type', /text\/html/)
+      .expect(/TicketIQ/);
+    await rawRequest(app.getHttpServer())
+      .get('/styles.css')
+      .expect(200)
+      .expect('Content-Type', /text\/css/);
+    await rawRequest(app.getHttpServer())
+      .get('/app.js')
+      .expect(200)
+      .expect('Content-Type', /javascript/);
   });
 
   it('reports the ML service as reachable when the probe succeeds', () => {
