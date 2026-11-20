@@ -1,56 +1,72 @@
 # TicketIQ Backend
 
-NestJS REST API untuk menyimpan dan mengklasifikasikan tiket dukungan. Backend
-mengirim teks tiket ke FastAPI, menyimpan kategori dan urgency yang dikembalikan,
-serta tetap menerima tiket dengan nilai fallback jika ML service tidak tersedia.
+NestJS REST API untuk support inbox TicketIQ. FastAPI mengklasifikasikan
+kategori dan urgency; NestJS menyimpan tiket, mengelola workflow, dan membatasi
+data ke workspace milik user yang sedang login.
 
-## Prasyarat
+## Stack
 
-- Node.js dan npm
-- PostgreSQL yang sedang berjalan
-- FastAPI TicketIQ dan artefak model yang sudah disiapkan
+- NestJS 12, TypeScript, PostgreSQL, Prisma 6
+- FastAPI ML client dengan timeout 5 detik dan fallback
+- `@nestjs/authentication` untuk scrypt password hashing, bearer JWT, dan
+  identitas request
+- `@nestjs/throttler` untuk rate limit login
+- Swagger, Jest, dan Supertest
 
-Ikuti panduan environment Python dan FastAPI di
-[`ml-service/README.md`](../ml-service/README.md). Pada checkout baru, artefak
-model tidak tersedia di Git dan perlu dibuat melalui pipeline ML sebelum
-menjalankan FastAPI. Evaluasi test final hanya boleh dilakukan sekali; jangan
-mengulang `evaluate_test_once.py` jika laporan test final sudah ada.
+Model DistilBERT tidak disimpan dalam Git. Ikuti setup dan instruksi dataset di
+[`ml-service/README.md`](../ml-service/README.md) sebelum mencoba klasifikasi
+ML live. Jangan menjalankan ulang evaluator test final yang sudah dikunci.
 
-## Konfigurasi
+## Siapkan environment
 
-Dari folder `backend`, salin template environment:
+Jalankan dari folder `backend`:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Edit `backend/.env` dan sesuaikan URL, user, password, serta nama database
-PostgreSQL lokal. Database utama dan shadow database harus tersedia sebelum
-migrasi dijalankan.
+Isi konfigurasi PostgreSQL untuk `DATABASE_URL` dan `SHADOW_DATABASE_URL`.
+Buat secret access token acak minimal 32 byte; contoh menggunakan Node:
+
+```powershell
+node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
+```
+
+Masukkan hasilnya ke `JWT_SECRET` di `.env`, lalu tetapkan password admin
+bootstrap yang kuat (12–128 karakter). Jangan commit `.env` atau menempelkan
+secret ke dokumentasi.
 
 | Variabel | Kegunaan |
 |---|---|
 | `DATABASE_URL` | Koneksi aplikasi ke PostgreSQL |
-| `SHADOW_DATABASE_URL` | Database shadow yang dipakai Prisma saat migrasi development |
-| `ML_SERVICE_URL` | Base URL FastAPI, default template `http://127.0.0.1:8000` |
+| `SHADOW_DATABASE_URL` | Database shadow untuk Prisma |
+| `ML_SERVICE_URL` | Base URL FastAPI, contoh `http://127.0.0.1:8000` |
+| `JWT_SECRET` | Secret HS256 minimal 32 byte; aplikasi gagal startup jika kosong/terlalu pendek |
+| `BOOTSTRAP_ADMIN_EMAIL` | Email admin workspace demo |
+| `BOOTSTRAP_ADMIN_PASSWORD` | Password bootstrap admin, minimal 12 karakter |
+| `AUTH_LOGIN_LIMIT` | Percobaan login per window, default `5` |
+| `AUTH_LOGIN_TTL_MS` | Durasi window rate limit dalam milidetik, default `60000` |
 
-Jangan commit `.env` atau memasukkan kredensial database ke dokumentasi.
+`JWT_SECRET` dan kredensial bootstrap bersifat rahasia. Rate limiter memakai
+storage in-memory untuk demo satu instance; deployment dengan banyak instance
+memerlukan shared storage agar batas login konsisten.
 
-## Instalasi dan migrasi
-
-Jalankan dari folder `backend`:
+## Instalasi, migrasi, dan akun admin
 
 ```powershell
 npm install
-npx prisma migrate dev
+npx prisma migrate deploy
+npm run db:seed
 ```
 
-Perintah migrasi menerapkan migration yang tersedia ke database dan
-menghasilkan Prisma Client.
+Migration melakukan backfill data lama ke workspace demo sebelum membuat
+`workspaceId` wajib. Seed membuat workspace dan admin awal secara idempotent.
+Seed tidak mengganti password akun yang sudah ada; untuk mengganti password,
+gunakan prosedur administrasi yang aman, bukan menjalankan seed berulang.
 
-## Menjalankan aplikasi lokal
+## Jalankan service
 
-Jalankan FastAPI lebih dahulu di terminal pertama. Dari root repository:
+Jalankan FastAPI lebih dahulu di terminal pertama dari root repo:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
@@ -58,41 +74,81 @@ Set-Location .\ml-service
 python -m uvicorn api.main:app --host 127.0.0.1 --port 8000
 ```
 
-Jika virtual environment atau artefak model belum tersedia, ikuti setup ML di
-[`ml-service/README.md`](../ml-service/README.md) terlebih dahulu.
-
-Di terminal kedua, jalankan NestJS dari root repository:
+Di terminal kedua:
 
 ```powershell
 Set-Location .\backend
 npm run start:dev
 ```
 
-NestJS berjalan di `http://localhost:3000` secara default. Swagger UI tersedia
-di [`http://localhost:3000/api-docs`](http://localhost:3000/api-docs). Halaman
-`GET /health` melaporkan status backend dan apakah FastAPI dapat dijangkau.
+NestJS berjalan di `http://localhost:3000`. Swagger UI ada di
+[`http://localhost:3000/api-docs`](http://localhost:3000/api-docs);
+`GET /health` tetap public dan menunjukkan apakah FastAPI dapat dijangkau.
+Endpoint lain memerlukan access token bearer. Gunakan
+`BOOTSTRAP_ADMIN_EMAIL` dan `BOOTSTRAP_ADMIN_PASSWORD` untuk login, lalu klik
+**Authorize** di Swagger dan masukkan token.
+
+### Login dan autentikasi API
+
+```powershell
+$loginBody = @{
+  email = "admin@example.com"
+  password = "GANTI_DENGAN_PASSWORD_BOOTSTRAP"
+} | ConvertTo-Json
+
+$login = Invoke-RestMethod `
+  -Method Post `
+  -Uri http://localhost:3000/auth/login `
+  -ContentType "application/json" `
+  -Body $loginBody
+
+$headers = @{ Authorization = "Bearer $($login.accessToken)" }
+Invoke-RestMethod -Uri http://localhost:3000/auth/me -Headers $headers
+```
+
+Access token berlaku 15 menit. Refresh token sengaja tidak digunakan pada MVP;
+setelah access token kedaluwarsa, client login kembali. Password di-hash
+dengan scrypt dan tidak pernah dikembalikan oleh API. Login menerima maksimal
+5 request per 60 detik secara default.
+
+Admin dapat membuat akun `AGENT` melalui `POST /auth/members`. User dan record
+Agent terkait dibuat dalam satu transaksi, pada workspace admin yang sedang
+login. Public self-registration tidak tersedia.
 
 ## Endpoint
 
-| Method | Path | Keterangan |
-|---|---|---|
-| `GET` | `/health` | Status backend dan konektivitas FastAPI |
-| `POST` | `/tickets` | Validasi, klasifikasi tiket, lalu simpan ke PostgreSQL |
-| `GET` | `/tickets` | Daftar tiket, urgency tertinggi lebih dahulu; tiket terbaru lebih dahulu jika urgency sama |
-| `GET` | `/tickets/:id` | Detail tiket berdasarkan ID |
+| Method | Path | Akses | Keterangan |
+|---|---|---|---|
+| `GET` | `/health` | Public | Status NestJS dan konektivitas FastAPI |
+| `POST` | `/auth/login` | Public + rate limit | Login dan terbitkan JWT |
+| `GET` | `/auth/me` | Bearer | Profil user/workspace aktif |
+| `POST` | `/auth/members` | Admin | Membuat user AGENT dan record agent |
+| `GET` | `/agents` | Bearer | Daftar agent dalam workspace |
+| `POST` | `/agents` | Admin | Membuat agent direktori dalam workspace |
+| `GET`, `PATCH` | `/agents/:id` | Bearer/Admin untuk update | Baca/update agent dalam workspace |
+| `POST` | `/tickets` | Bearer | Klasifikasi ML, hitung deadline, simpan tiket |
+| `GET` | `/tickets` | Bearer | Pencarian, filter, pagination, sorting |
+| `GET` | `/tickets/summary` | Bearer | Ringkasan antrean workspace |
+| `GET` | `/tickets/:id` | Bearer | Detail tiket |
+| `PATCH` | `/tickets/:id/assignee` | Bearer | Assign/unassign agent satu workspace |
+| `PATCH` | `/tickets/:id/status` | Bearer | Ubah status dan catat activity |
+| `POST` | `/tickets/:id/notes` | Bearer | Tambahkan catatan internal |
+| `PATCH` | `/tickets/:id/category` | Bearer | Koreksi category tanpa menimpa prediksi |
+| `GET` | `/tickets/:id/activity` | Bearer | Baca riwayat activity append-only |
 
-`GET /tickets` menerima filter query opsional:
+Contoh query antrean:
 
 ```text
-GET /tickets?category=PAYMENT&urgency=High
+GET /tickets?q=payment&status=NEW&category=PAYMENT&urgency=High&overdue=true&page=1&limit=20
 ```
 
-Nilai `category` harus salah satu enum kategori TicketIQ (termasuk
-`UNCLASSIFIED`); `urgency` harus `Low`, `Medium`, atau `High`.
+Urgency diurutkan eksplisit High → Medium → Low, kemudian waktu terbaru dan ID
+sebagai tie-breaker. SLA kalender UTC: High 4 jam, Medium 24 jam, Low 72 jam.
+Tiket `RESOLVED` bukan overdue aktif; saat reopen, deadline lama dipertahankan.
 
-## Contoh request dan response
+## Submit tiket
 
-Buat tiket melalui PowerShell:
+Contoh PowerShell setelah login:
 
 ```powershell
 $body = @{
@@ -103,65 +159,27 @@ $body = @{
 Invoke-RestMethod `
   -Method Post `
   -Uri http://localhost:3000/tickets `
+  -Headers $headers `
   -ContentType "application/json" `
   -Body $body
 ```
 
-Contoh response sukses (`201 Created`):
+FastAPI tetap menjadi satu-satunya sumber category dan urgency. Jika tidak
+terjangkau atau timeout, tiket tetap tersimpan dengan `category =
+"UNCLASSIFIED"`, `urgency = "Medium"`, dan `isFallback = true`.
 
-```json
-{
-  "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
-  "title": "Payment issue",
-  "description": "I need help with a payment that is still pending.",
-  "category": "PAYMENT",
-  "urgency": "High",
-  "isFallback": false,
-  "createdAt": "2026-11-19T10:00:00.000Z",
-  "updatedAt": "2026-11-19T10:00:00.000Z"
-}
-```
+## Isolasi dan akses
 
-Response aktual berisi ID dan timestamp yang dibuat oleh database.
+Workspace diambil dari user yang terautentikasi, tidak dari body atau query
+client. List, summary, detail, workflow, correction, activity, assignment,
+dan agent queries selalu dibatasi pada workspace tersebut. ID resource dari
+workspace lain menghasilkan `404`. Role dibaca ulang dari database untuk
+setiap request; user nonaktif tidak dapat memakai token sebelumnya.
 
-## Graceful fallback
+## Validasi
 
-NestJS memberi FastAPI waktu maksimal 5 detik untuk klasifikasi. Jika FastAPI
-gagal atau timeout, request pembuatan tiket tetap berhasil dan tiket disimpan
-dengan:
-
-```json
-{
-  "category": "UNCLASSIFIED",
-  "urgency": "Medium",
-  "isFallback": true
-}
-```
-
-Urgency dihitung oleh FastAPI; NestJS hanya menyimpan hasil yang dikembalikan
-service tersebut. `isFallback` menunjukkan apakah klasifikasi tiket itu
-menggunakan nilai fallback.
-
-## Error dan validasi
-
-Semua error menggunakan bentuk response:
-
-```json
-{
-  "statusCode": 400,
-  "message": "Pesan error yang aman untuk client",
-  "error": "Bad Request"
-}
-```
-
-Validasi menolak `title` yang kurang dari 3 karakter dan `description` yang
-kurang dari 10 karakter. Error tak terduga dikirim dengan pesan umum, tanpa
-detail internal.
-
-## Testing dan pemeriksaan
-
-Pastikan `.env` valid dan PostgreSQL tersedia untuk e2e test. Dari folder
-`backend`, jalankan:
+Pastikan PostgreSQL tersedia dan `.env` memiliki `DATABASE_URL` serta
+`JWT_SECRET`. Jalankan dari folder `backend`:
 
 ```powershell
 npm run build
@@ -170,13 +188,14 @@ npm test -- --runInBand
 npm run test:e2e -- --runInBand
 ```
 
-Unit test ML mem-mock HTTP request sehingga tidak membutuhkan FastAPI aktif.
-E2E test menggunakan database PostgreSQL dan mock ML client; test menghapus
-record yang dibuatnya.
+Unit test memakai mock untuk HTTP ML client dan aturan domain. E2E memakai
+PostgreSQL lokal, token test, dan mock ML client sehingga tidak perlu
+menjalankan FastAPI. E2E menghapus record yang dibuatnya.
 
-## Batasan dan next steps
+## Batasan MVP
 
-- Belum ada autentikasi/otorisasi; jangan mengekspos API ke jaringan publik
-  tanpa proteksi.
-- Frontend Next.js, Redis, Docker/CI-CD, autentikasi penuh, dan pgvector berada
-  di luar scope MVP ini, sesuai [PRD](../PRD.md).
+- Access token hanya berlaku 15 menit; belum ada refresh-token flow atau
+  self-registration.
+- Rate limit in-memory hanya konsisten pada satu process.
+- Business-hours SLA, scheduler/notifikasi, billing, dan frontend belum
+  termasuk; lihat [`prd.improve.md`](../prd.improve.md).

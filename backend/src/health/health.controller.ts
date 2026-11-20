@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { Public } from '@nestjs/authentication';
 import {
   ApiInternalServerErrorResponse,
   ApiOkResponse,
@@ -15,6 +16,7 @@ import { HealthResponseDto } from './health-response.dto';
   type: ApiErrorResponseDto,
 })
 @Controller('health')
+@Public()
 export class HealthController {
   constructor(private readonly mlClient: MlClientService) {}
 

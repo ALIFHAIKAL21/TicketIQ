@@ -8,8 +8,10 @@ Fokus tahap ini adalah **fitur bisnis dan API**, bukan tampilan frontend.
 Endpoint dapat diuji lewat Swagger. Frontend dibuat setelah alur backend
 matang.
 
-> **Status:** rencana. Item di bawah ini belum dianggap selesai sebelum
-> implementasi dan acceptance test-nya lulus.
+> **Status:** tahap 1–5 telah diimplementasikan pada backend. Acceptance test
+> mencakup workflow, queue, koreksi category, SLA, autentikasi, role, dan
+> isolasi workspace. Demo ML live tetap memerlukan artefak DistilBERT yang tidak
+> disimpan di Git.
 
 ## Gambaran produk
 
@@ -211,14 +213,31 @@ atau dipublikasikan.
 
 ## Urutan kerja yang disarankan
 
-1. **Berikutnya:** status + agent/assignment + activity history.
-2. **Setelah alur tiket berjalan:** pencarian/filter/pagination + ringkasan
-   antrean.
-3. **Setelah triage stabil:** koreksi hasil ML, lalu SLA sederhana.
-4. **Sebelum deployment multi-tim:** workspace, autentikasi, role, dan
-   pengujian isolasi tenant.
-5. **Setelah backend matang:** implementasikan frontend menggunakan API dan
-   alur yang sudah diuji.
+1. [x] Status + agent/assignment + activity history.
+2. [x] Pencarian/filter/pagination + ringkasan antrean.
+3. [x] Koreksi hasil ML, lalu SLA sederhana.
+4. [x] Workspace, autentikasi, role, dan pengujian isolasi tenant.
+5. Berikutnya: implementasikan frontend menggunakan API dan alur yang sudah
+   diuji.
+
+### Keputusan SLA yang sudah disepakati
+
+- Kalender UTC, bukan jam kerja.
+- High 4 jam, Medium 24 jam, Low 72 jam.
+- Ketika tiket dibuka ulang, deadline lama dipertahankan; reopen tidak memulai
+  SLA baru.
+- Category correction tidak mengubah urgency maupun SLA.
+
+### Ringkasan auth/workspace saat ini
+
+- Login `POST /auth/login` menerbitkan bearer access token 15 menit; refresh
+  token dan public self-registration tidak tersedia.
+- Admin awal dibuat melalui `npm run db:seed`; admin dapat membuat user AGENT
+  lewat `POST /auth/members`.
+- Ticket, agent, activity, notes, summary, dan mutasi dibatasi ke workspace
+  dari user terautentikasi.
+- Rate limit login default 5 request per 60 detik dan dapat dikonfigurasi.
+- Detail operasional dan endpoint tersedia di [`backend/README.md`](backend/README.md).
 
 ## Bukan prioritas saat ini
 

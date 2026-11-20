@@ -6,14 +6,25 @@ import { TicketService } from './ticket.service';
 describe('TicketService', () => {
   it('uses explicit descending urgency priorities in the list query', async () => {
     const queryRaw = jest.fn().mockResolvedValue([]);
-    const prisma = { $queryRaw: queryRaw } as unknown as PrismaService;
+    const prismaMock = {
+      $queryRaw: queryRaw,
+      $transaction: jest.fn(),
+    };
+    prismaMock.$transaction.mockImplementation(
+      (callback: (transaction: typeof prismaMock) => Promise<unknown>) =>
+        callback(prismaMock),
+    );
+    const prisma = prismaMock as unknown as PrismaService;
     const service = new TicketService(prisma, {} as MlClientService);
 
-    await service.findAll({});
+    await service.findAll({}, '00000000-0000-4000-8000-000000000001');
 
-    const query = queryRaw.mock.calls[0][0] as Prisma.Sql;
+    const query = queryRaw.mock.calls
+      .map(([sql]) => sql as Prisma.Sql)
+      .find((sql) => sql.sql.includes('ORDER BY'));
+    expect(query).toBeDefined();
     const priorities = Array.from(
-      query.sql.matchAll(/WHEN '(\w+)'::"TicketUrgency" THEN (\d+)/g),
+      query!.sql.matchAll(/WHEN '(\w+)'::"TicketUrgency" THEN (\d+)/g),
       ([, urgency, priority]) => [urgency, Number(priority)],
     );
 

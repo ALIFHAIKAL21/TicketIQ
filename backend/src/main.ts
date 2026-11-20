@@ -19,6 +19,7 @@ async function bootstrap() {
     .setTitle('TicketIQ API')
     .setDescription('API for managing and classifying support tickets')
     .setVersion('1.0')
+    .addBearerAuth()
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api-docs', app, documentFactory);

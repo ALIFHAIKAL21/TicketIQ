@@ -1,12 +1,19 @@
 PRD — TicketIQ Backend (NestJS) MVP Showcase
 Lanjutan dari roadmap 5 hari TicketIQ — fokus backend NestJS hingga siap showcase. Next.js menyusul terpisah.
+
+> Catatan: dokumen ini merekam scope MVP awal. Workflow, SLA, autentikasi,
+> role, dan isolasi workspace ditambahkan pada
+> [`prd.improve.md`](prd.improve.md); keputusan scope awal yang menyatakan
+> “tanpa auth” sudah digantikan oleh PRD lanjutan tersebut.
 1. Konteks
-ML service sudah selesai dan berjalan (Hari 1 roadmap, done):
+ML service sudah selesai pada tahap sebelumnya (Hari 1 roadmap):
 • FastAPI POST /classify aktif di ml-service/api/main.py
 • Model DistilBERT, test accuracy 0.9969, macro-F1 0.9973
 • Urgency dihitung rule-based di ml-service/urgency_rules.py, terverifikasi cocok di seluruh dataset
 • Kontrak API ML: input {"ticket_text": string} → output {"category": string, "urgency": "Low"|"Medium"|"High"}
-PRD ini mencakup backend NestJS saja, dari nol sampai siap didemokan (showcase-ready). Next.js, Redis, Docker/CI-CD, auth lengkap, dan pgvector sengaja di luar scope PRD ini (sudah diputuskan sebagai next steps di tahap sebelumnya).
+PRD ini mencakup baseline backend NestJS. Scope backend terbaru dan kelanjutan
+setelah MVP dijelaskan di `prd.improve.md`. Next.js, Redis, Docker/CI-CD, dan
+pgvector tetap di luar scope saat ini.
 2. Tujuan
 Backend NestJS yang bisa:
 1.  Menerima tiket baru, meneruskan ke FastAPI untuk diklasifikasi, menyimpan hasilnya
@@ -65,7 +72,9 @@ Konsisten: { "statusCode": number, "message": string, "error": string } di semua
 Sorting urgency
 Mapping numerik eksplisit: High=3, Medium=2, Low=1 — bukan alfabetis
 Auth
-MVP: tanpa auth dulu (catat di README sebagai next step), atau API key sederhana jika ingin ada sedikit proteksi
+Baseline PRD ini awalnya tanpa auth; keputusan tersebut superseded oleh tahap
+workspace/auth pada `prd.improve.md`. Endpoint tiket dan agent sekarang wajib
+bearer access token serta workspace scoping.
 6. Data Model (Prisma Schema)
 model Ticket {
   id          String   @id @default(uuid())
@@ -125,25 +134,25 @@ Tahap 4 — Integrasi FastAPI (Ml Client)
 [ ] Hubungkan MlClientService ke TicketsService.create() — setiap tiket baru otomatis diklasifikasi sebelum disimpan
 Acceptance: submit tiket dengan teks jelas (contoh: "saya butuh refund sekarang") menghasilkan category/urgency yang benar dari model. Matikan FastAPI secara sengaja lalu submit tiket lagi — tiket tetap tersimpan dengan isFallback: true dan nilai default, request tidak error 500.
 Tahap 5 — Sorting & Filtering
-[ ] Implementasikan mapping numerik urgency (High=3, Medium=2, Low=1) untuk ORDER BY di query GET /tickets
-[ ] Tambahkan query param opsional category dan urgency untuk filter (FR5)
+[x] Implementasikan mapping numerik urgency (High=3, Medium=2, Low=1) untuk ORDER BY di query GET /tickets
+[x] Tambahkan query param opsional category dan urgency untuk filter (FR5)
 Acceptance: GET /tickets menampilkan tiket High di paling atas, lalu Medium, lalu Low; dalam urgency yang sama, terbaru di atas.
 Tahap 6 — Error Handling & Health Check
-[ ] Buat global exception filter agar semua error punya format response konsisten (bagian 5)
-[ ] Implementasikan GET /health yang juga mengecek konektivitas ke FastAPI (request ringan/ping dengan timeout singkat)
+[x] Buat global exception filter agar semua error punya format response konsisten (bagian 5)
+[x] Implementasikan GET /health yang juga mengecek konektivitas ke FastAPI (request ringan/ping dengan timeout singkat)
 Acceptance: error 400/404/500 semuanya mengembalikan shape JSON yang sama; GET /health menunjukkan status unreachable saat FastAPI dimatikan.
 Tahap 7 — Dokumentasi API (Swagger)
-[ ] Setup @nestjs/swagger, dekorasi DTO dan controller agar muncul di /api-docs
-[ ] Pastikan semua endpoint (termasuk contoh request/response) terdokumentasi otomatis
+[x] Setup @nestjs/swagger, dekorasi DTO dan controller agar muncul di /api-docs
+[x] Pastikan semua endpoint (termasuk contoh request/response) terdokumentasi otomatis
 Acceptance: buka /api-docs di browser, semua endpoint bisa dicoba langsung dari situ (tanpa Postman).
 Tahap 8 — Testing Dasar
-[ ] Unit test untuk MlClientService (mock HTTP call: skenario sukses dan skenario fallback)
-[ ] Unit test untuk fungsi mapping urgency (sorting)
-[ ] Minimal 1 e2e test: submit tiket → cek muncul di list
+[x] Unit test untuk MlClientService (mock HTTP call: skenario sukses dan skenario fallback)
+[x] Unit test untuk fungsi mapping urgency (sorting)
+[x] Minimal 1 e2e test: submit tiket → cek muncul di list
 Acceptance: npm run test dan npm run test:e2e lulus semua.
 Tahap 9 — Dokumentasi README Backend
-[ ] Tulis README backend: cara install, cara run (termasuk pastikan FastAPI jalan duluan), contoh request/response, penjelasan singkat fallback behavior
-[ ] Cantumkan link ke /api-docs (Swagger)
+[x] Tulis README backend: cara install, cara run (termasuk pastikan FastAPI jalan duluan), contoh request/response, penjelasan singkat fallback behavior
+[x] Cantumkan link ke /api-docs (Swagger)
 Acceptance: orang lain yang belum pernah lihat proyek ini bisa menjalankan backend hanya dengan mengikuti README.
 9. Definition of Done — Backend Siap Showcase
 [ ] Semua 9 tahap di atas selesai dengan acceptance criteria terpenuhi
@@ -155,7 +164,7 @@ Acceptance: orang lain yang belum pernah lihat proyek ini bisa menjalankan backe
 • Frontend Next.js (PRD terpisah, menyusul)
 • Redis (caching/rate limiting)
 • Docker + CI/CD
-• Autentikasi JWT penuh / multi-tenant
+• Refresh-token flow, self-registration, dan shared rate-limit storage
 • pgvector / semantic search
 Item-item ini tetap dicantumkan sebagai "Next Steps" di README backend, bukan dihapus dari rencana besar — hanya ditunda sesuai keputusan MVP 5 hari sebelumnya.
 11. NestJS Best Practices & Dependency Minimal (Industry-Standard)
@@ -182,7 +191,10 @@ Wajib untuk showcase tanpa perlu Postman collection terpisah
 @nestjs/testing + jest + supertest
 Unit & e2e testing
 Default bawaan Nest CLI, tidak perlu testing framework lain
-Sengaja TIDAK dipakai (supaya tetap minimal, sesuai scope MVP): @nestjs/cqrs, @nestjs/graphql, @nestjs/microservices, @nestjs/jwt (auth lengkap ditunda), @nestjs/bull/queue library, ORM lain selain Prisma. Menambah ini di MVP showcase backend sederhana justru dianggap over-engineering, bukan nilai plus.
+Sengaja TIDAK dipakai: @nestjs/cqrs, @nestjs/graphql, @nestjs/microservices,
+@nestjs/jwt (JWT dan scrypt memakai @nestjs/authentication first-party),
+@nestjs/bull/queue library, ORM lain selain Prisma. Menambahnya tanpa kebutuhan
+yang dibuktikan justru over-engineering.
 Prinsip Clean Code & Arsitektur
 1.  Controller tetap tipis. Controller HANYA menerima request, memanggil satu method service, dan mengembalikan hasil. Tidak ada logika bisnis di controller.
 2.  Service berisi logika bisnis murni, tidak langsung bergantung ke Prisma Client secara literal di banyak tempat — akses database selalu lewat PrismaService yang di-inject.

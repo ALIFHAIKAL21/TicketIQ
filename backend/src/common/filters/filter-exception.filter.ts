@@ -27,7 +27,10 @@ export class FilterExceptionFilter implements ExceptionFilter {
       } else if (typeof payload === 'object' && payload !== null) {
         if ('message' in payload) {
           const payloadMessage = payload.message;
-          if (typeof payloadMessage === 'string' || Array.isArray(payloadMessage)) {
+          if (
+            typeof payloadMessage === 'string' ||
+            Array.isArray(payloadMessage)
+          ) {
             message = payloadMessage as string | string[];
           }
         }

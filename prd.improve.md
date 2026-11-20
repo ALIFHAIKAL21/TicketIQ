@@ -23,6 +23,21 @@ Mulai PRD ini hanya setelah:
 Jangan menganggap status PRD awal selesai hanya karena implementasi sudah
 ditulis; acceptance-nya juga harus dibuktikan.
 
+### Catatan implementasi repository
+
+- Tahap workflow, queue, koreksi kategori, SLA, dan workspace/auth sudah
+  diimplementasikan; verifikasi backend dilakukan dengan build, lint, unit, dan
+  e2e test.
+- E2E memakai mock FastAPI. Demo klasifikasi langsung belum dapat dibuktikan
+  pada checkout yang tidak memiliki artefak DistilBERT; jangan menjalankan ulang
+  evaluasi test final yang sudah dikunci.
+- Login memakai bearer access token 15 menit. Refresh token dan self-registration
+  tidak termasuk MVP. Admin awal berasal dari seed environment; admin dapat
+  membuat user AGENT untuk workspace-nya.
+- User satu workspace; `workspaceId` selalu berasal dari user terautentikasi.
+- SLA memakai kalender UTC: High 4 jam, Medium 24 jam, Low 72 jam. Reopen
+  mempertahankan `dueAt` lama.
+
 ## 2. Visi produk
 
 TicketIQ adalah support inbox untuk tim kecil. ML membantu triage awal, lalu
@@ -76,7 +91,10 @@ Tahap 1–4 di bawah tidak memerlukan dependency runtime baru. Gunakan Prisma,
 PostgreSQL, NestJS, dan library yang sudah tersedia.
 
 Dependency autentikasi baru hanya ditambahkan ketika Tahap 5 dimulai dan
-kontrak auth sudah disepakati.
+kontrak auth sudah disepakati. Keputusan implementasi tahap ini: gunakan
+paket autentikasi first-party NestJS yang kompatibel dengan NestJS 12,
+access token bearer singkat tanpa refresh token, serta throttling khusus
+endpoint login.
 
 ## 5. Tahap 1 — Status, agent, assignment, dan activity history
 
@@ -276,6 +294,14 @@ Tentukan target waktu untuk tiap urgency dan apakah hitungan memakai waktu
 kalender atau jam kerja. Nilai ini adalah kebijakan produk, jadi jangan
 mengarang angka di dalam implementasi.
 
+Keputusan produk yang sudah disepakati:
+
+- SLA memakai waktu kalender UTC.
+- High: 4 jam; Medium: 24 jam; Low: 72 jam.
+- Ketika tiket dibuka ulang dari `RESOLVED` ke `IN_PROGRESS`, `dueAt` lama
+  dipertahankan. Reopen tidak memulai SLA baru.
+- Perubahan kategori tidak mengubah urgency maupun deadline SLA.
+
 ### Scope
 
 - Definisikan target resolusi High, Medium, dan Low dalam satu tempat
@@ -319,6 +345,9 @@ data yang benar-benar terisolasi.
 - Ticket, agent, activity, dan data summary harus dapat dikaitkan ke workspace.
 - Tentukan relasi agent dengan user agar assignment dapat menunjukkan anggota
   workspace yang sebenarnya.
+- `Agent.userId` adalah relasi opsional satu-ke-satu untuk data lama; anggota
+  baru yang dibuat lewat admin memiliki pasangan Agent dalam transaction yang
+  sama.
 - Jangan mengandalkan `workspaceId` yang dikirim client sebagai bukti akses.
   Ambil konteks workspace dari user yang sudah terautentikasi, lalu validasi
   membership.
@@ -335,24 +364,26 @@ data yang benar-benar terisolasi.
   penyimpanan/revocation yang jelas.
 - Swagger mendukung bearer token untuk mencoba endpoint terlindungi.
 
-### Dependency baru yang direkomendasikan
+### Dependency tambahan yang dipakai
 
-Tambahkan hanya saat Tahap 5 dimulai:
+Tambahkan hanya saat Tahap 5 dimulai dan periksa peer dependency terhadap
+versi NestJS proyek:
 
 | Package | Jenis | Kegunaan |
 |---|---|---|
-| `@nestjs/passport` | runtime | Menghubungkan Passport strategy dan guard ke pola NestJS |
-| `passport` | runtime | Kerangka strategi autentikasi |
-| `passport-jwt` | runtime | Memvalidasi bearer JWT pada request |
-| `@nestjs/jwt` | runtime | Membuat dan memverifikasi JWT di NestJS |
-| `argon2` | runtime | Hash dan verifikasi password dengan Argon2id |
-| `@types/passport-jwt` | development | Tipe TypeScript untuk strategy JWT bila belum disediakan package |
-| `@nestjs/throttler` | runtime, khusus endpoint auth publik | Membatasi percobaan login berulang |
+| `@nestjs/authentication` `^0.1.6` | runtime | Scrypt `PasswordHasher`, issuer dan verifier bearer JWT, `@Public()`, dan `@CurrentUser()`; first-party NestJS |
+| `@nestjs/throttler` `^6.8.0` | runtime | Membatasi percobaan login (5 request/menit per IP pada MVP ini) |
 
-Sebelum install, periksa kompatibilitas versi package dengan versi NestJS dan
-Node.js proyek. Jangan menambahkan `@nestjs/throttler` pada endpoint internal
-tanpa kebutuhan; terapkan terutama pada login setelah kebijakan limit
-ditentukan.
+`@nestjs/authentication` menyediakan scrypt dengan parameter default OWASP
+(`N=2^17`, `r=8`, `p=1`) dan JWT pendek. Access token berlaku 15 menit; refresh
+token sengaja dimatikan agar tidak ada token jangka panjang yang memerlukan
+storage/revocation tambahan. Karena itu client perlu login kembali setelah
+token kedaluwarsa. Role `ADMIN`/`AGENT` dibatasi dengan decorator dan guard
+NestJS yang tipis; belum diperlukan policy engine terpisah.
+
+Rate limiter saat ini menggunakan storage in-memory, sesuai demo satu instance.
+Deployment multi-instance perlu shared throttler storage agar limit berlaku
+konsisten di semua instance; Redis tetap tidak ditambahkan hanya untuk MVP.
 
 ### Security requirements
 
@@ -377,11 +408,15 @@ ditentukan.
 - Role tidak berhak mendapat 403.
 - User workspace A tidak dapat membaca atau mengubah resource workspace B,
   termasuk melalui ID yang diketahui langsung.
+- User nonaktif tidak dapat memakai access token sebelumnya; role dibaca ulang
+  dari database pada setiap request, bukan dipercaya dari claim JWT.
 - E2E test membuktikan isolasi tenant pada list, detail, update, activity, dan
   summary.
+- Admin dapat membuat anggota AGENT dalam workspace yang sama; password tidak
+  pernah disimpan atau dikembalikan dalam bentuk plaintext.
 - Hash password dapat diverifikasi tetapi tidak dapat dipakai untuk
   memperoleh password asli.
-- Login rate limit teruji dan dapat dikonfigurasi.
+- Login rate limit teruji dan memiliki batas yang terdokumentasi.
 
 ## 10. Dependency yang tidak ditambahkan dalam PRD ini
 
